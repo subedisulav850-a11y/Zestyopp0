@@ -1,0 +1,5 @@
+flask>=2.0.0
+gunicorn
+werkzeug>=2.0.0
+sqlalchemy>=1.4.0
+requests>=2.31.0
