@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Storage - Zesty Host{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="{{ url_for('dashboard') }}" class="logo">
+                <div class="logo-icon"><i class="fas fa-rocket"></i></div>
+                <div>
+                    <div class="logo-text">Zesty</div>
+                    <div class="logo-subtitle">Bot Hosting</div>
+                </div>
+            </a>
+        </div>
+        <nav class="nav-menu">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                <a href="{{ url_for('dashboard') }}" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="{{ url_for('upload') }}" class="nav-item"><i class="fas fa-cloud-upload-alt"></i> Upload Bot</a>
+                <a href="{{ url_for('my_files') }}" class="nav-item"><i class="fas fa-folder-open"></i> My Files</a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Administration</div>
+                <a href="{{ url_for('admin_panel') }}" class="nav-item"><i class="fas fa-shield-alt"></i> Admin Panel</a>
+                <a href="{{ url_for('admin_storage') }}" class="nav-item active"><i class="fas fa-database"></i> Storage</a>
+                <a href="{{ url_for('admin_editor') }}" class="nav-item"><i class="fas fa-code"></i> File Editor</a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">{{ user.username[0]|upper }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ user.username }}</div>
+                    <div class="user-role">Owner</div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <h1 class="page-title">Storage <span>Manager</span></h1>
+            <div class="top-actions">
+                <a href="{{ url_for('admin_storage') }}" class="btn btn-secondary btn-sm"><i class="fas fa-sync-alt"></i> Refresh</a>
+            </div>
+        </div>
+
+        <div class="content-area">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'warning' else 'times-circle' }}"></i>
+                                <span>{{ message|safe }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i class="fas fa-hdd"></i></div>
+                    <div class="stat-value">{{ disk_used_str }}</div>
+                    <div class="stat-label">Disk Used · {{ disk_percent }}%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-server"></i></div>
+                    <div class="stat-value">{{ disk_free_str }}</div>
+                    <div class="stat-label">Disk Free</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-folder-open"></i></div>
+                    <div class="stat-value">{{ managed_used_str }}</div>
+                    <div class="stat-label">Zesty Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red"><i class="fas fa-file"></i></div>
+                    <div class="stat-value">{{ total_files }}</div>
+                    <div class="stat-label">Total Files</div>
+                </div>
+            </div>
+
+            <div class="card fade-in" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title"><i class="fas fa-chart-pie"></i> Storage Usage</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">{{ disk_used_str }} used of {{ disk_total_str }}</div>
+                    </div>
+                    <div style="min-width:180px;text-align:right;font-weight:700;color:var(--accent-primary);">{{ disk_percent }}%</div>
+                </div>
+                <div class="card-body">
+                    <div style="height:12px;background:var(--bg-hover);border-radius:99px;overflow:hidden;border:1px solid var(--border-color);">
+                        <div style="height:100%;width:{{ [disk_percent, 100]|min }}%;background:var(--accent-gradient);border-radius:99px;transition:width .3s ease;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;gap:16px;margin-top:10px;font-size:12px;color:var(--text-secondary);">
+                        <span><i class="fas fa-database"></i> Managed: {{ managed_used_str }}</span>
+                        <span>Free: {{ disk_free_str }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title"><i class="fas fa-folder"></i> All Storage Files</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Files inside the Zesty data directory</div>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin_storage_clear_backups') }}" onsubmit="return confirm('Clear all backup/temp files? This cannot be undone.');">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-broom"></i> Clear Backup Files
+                            {% if backup_count %}<span style="opacity:.8;">({{ backup_count }})</span>{% endif %}
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card-body" style="padding:0;">
+                    {% if files %}
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--border-color);text-align:left;">
+                                    <th style="padding:14px 20px;">File</th>
+                                    <th style="padding:14px 20px;">Path</th>
+                                    <th style="padding:14px 20px;">Size</th>
+                                    <th style="padding:14px 20px;">Modified</th>
+                                    <th style="padding:14px 20px;text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for file in files %}
+                                <tr style="border-bottom:1px solid var(--border-color);">
+                                    <td style="padding:14px 20px;white-space:nowrap;">
+                                        <i class="fas {{ 'fa-file-archive' if file.is_backup else 'fa-file' }}" style="color:{{ 'var(--warning)' if file.is_backup else 'var(--accent-primary)' }};width:22px;"></i>
+                                        <span style="font-weight:600;">{{ file.name }}</span>
+                                        {% if file.is_backup %}
+                                            <span class="badge" style="margin-left:8px;padding:3px 8px;background:rgba(245,158,11,.1);color:var(--warning);">BACKUP</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding:14px 20px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:12px;">{{ file.path }}</td>
+                                    <td style="padding:14px 20px;white-space:nowrap;">{{ file.size_str }}</td>
+                                    <td style="padding:14px 20px;color:var(--text-secondary);white-space:nowrap;">{{ file.modified }}</td>
+                                    <td style="padding:14px 20px;text-align:right;white-space:nowrap;">
+                                        <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_storage_download', rel_path=file.path) }}" title="Download"><i class="fas fa-download"></i> Download</a>
+                                        <form method="POST" action="{{ url_for('admin_storage_delete') }}" style="display:inline;" onsubmit="return confirm('Delete this file permanently?');">
+                                            <input type="hidden" name="path" value="{{ file.path }}">
+                                            <button class="btn btn-danger btn-sm" type="submit" title="Delete"><i class="fas fa-trash"></i> Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state" style="padding:60px 20px;">
+                        <div class="empty-icon"><i class="fas fa-database"></i></div>
+                        <div class="empty-title">Storage is Empty</div>
+                        <div class="empty-text">No files were found in the Zesty data directory.</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

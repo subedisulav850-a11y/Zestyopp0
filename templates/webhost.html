@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}WebHost - Zesty Host{% endblock %}
+{% block body %}
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="sidebar-header"><a href="{{ url_for('dashboard') }}" class="logo"><div class="logo-icon"><i class="fas fa-rocket"></i></div><div><div class="logo-text">Zesty</div><div class="logo-subtitle">Bot Hosting</div></div></a></div>
+        <nav class="nav-menu">
+            <div class="nav-section"><div class="nav-section-title">Main</div>
+                <a href="{{ url_for('dashboard') }}" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="{{ url_for('upload') }}" class="nav-item"><i class="fas fa-cloud-upload-alt"></i> Upload Bot</a>
+                <a href="{{ url_for('my_files') }}" class="nav-item"><i class="fas fa-folder-open"></i> My Files</a>
+                <a href="{{ url_for('webhost') }}" class="nav-item active"><i class="fas fa-globe"></i> WebHost</a>
+            </div>
+            {% if is_admin|default(false) %}<div class="nav-section"><div class="nav-section-title">Administration</div><a href="{{ url_for('admin_panel') }}" class="nav-item"><i class="fas fa-shield-alt"></i> Admin Panel</a></div>{% endif %}
+        </nav>
+        <div class="sidebar-footer"><div class="user-card"><div class="user-avatar">{{ user.username[0]|upper }}</div><div class="user-info"><div class="user-name">{{ user.username }}</div><div class="user-role">{{ user.role|title }}</div></div><a href="{{ url_for('logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a></div></div>
+    </aside>
+    <main class="main-content">
+        <div class="top-bar"><button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button><h1 class="page-title">Web<span>Host</span></h1><div class="top-actions"><a href="{{ url_for('upload') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Upload</a></div></div>
+        <div class="content-area">
+            <div class="card fade-in" style="margin-bottom:24px;"><div class="card-header"><div class="card-title"><i class="fas fa-globe"></i> Web Hosting</div><span class="badge" style="background:rgba(139,92,246,.1);color:var(--accent-primary)">HTTP Proxy</span></div><div class="card-body"><p style="color:var(--text-secondary);margin:0">Enable WebHost on an uploaded Python app. The app should listen on the <b>PORT</b> environment variable. Public format: <code>/host/&lt;user&gt;/&lt;file&gt;/&lt;endpoint&gt;</code></p></div></div>
+            {% if bots %}
+            {% for bot in bots %}
+            <div class="card fade-in" style="margin-bottom:18px;"><div class="card-header"><div><div class="card-title"><i class="fas fa-file-code"></i> {{ bot.filename }}</div><div style="font-size:12px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;margin-top:5px">{{ bot.uid }}{% if bot.host_port %} · Port {{ bot.host_port }}{% endif %}</div></div><span class="badge badge-{{ bot.status }}"><span class="badge-dot"></span>{{ bot.status|upper }}</span></div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                        <div style="padding:15px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-secondary)"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>WebHost</b><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Browser/API endpoint</div></div><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" {% if bot.web_host_enabled %}checked{% endif %} onchange="toggleHost('{{ bot.id }}','web',this.checked)" style="width:20px;height:20px;accent-color:#8b5cf6"></label></div>
+                        {% if bot.web_host_enabled %}<div id="url-{{ bot.id }}" style="margin-top:12px"><input class="form-input" readonly value="{{ request.host_url.rstrip('/') }}/host/{{ user.username }}/{{ bot.web_slug or bot.filename.rsplit(".", 1)[0]|lower|replace(" ", "-") }}" onclick="this.select()"><div style="font-size:11px;color:var(--text-secondary);margin-top:6px">Port: <b>{{ bot.host_port or 'allocating...' }}</b> · Open the URL and append your endpoint.</div></div>{% endif %}</div>
+                        <div style="padding:15px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-secondary)"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>TerminalHost</b><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Run Python process</div></div><input type="checkbox" {% if bot.terminal_host_enabled %}checked{% endif %} onchange="toggleHost('{{ bot.id }}','terminal',this.checked)" style="width:20px;height:20px;accent-color:#8b5cf6"></div><div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">Use this when you want the uploaded script running without a browser endpoint.</div></div>
+                    </div>
+                </div></div>
+            {% endfor %}
+            {% else %}<div class="card"><div class="empty-state"><div class="empty-icon"><i class="fas fa-globe"></i></div><div class="empty-title">No uploads yet</div><div class="empty-text">Upload a .py or .zip file to configure WebHost.</div><a href="{{ url_for('upload') }}" class="btn btn-primary"><i class="fas fa-cloud-upload-alt"></i> Upload</a></div></div>{% endif %}
+        </div>
+    </main>
+</div>
+<script>
+async function toggleHost(id, type, enabled){
+  const endpoint=type==='web'?`/webhost/toggle/${id}`:`/terminalhost/toggle/${id}`;
+  const body=new URLSearchParams({enabled:enabled?'1':'0'});
+  try{const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}); const d=await r.json(); if(!d.ok) throw new Error(d.msg||'Failed'); location.reload();}catch(e){alert(e.message); location.reload();}
+}
+</script>
+{% endblock %}
